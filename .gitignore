@@ -1,0 +1,15 @@
+# python bytecode
+__pycache__/
+*.pyc
+.pytest_cache
+
+# ruff
+.ruff_cache/
+
+# script outputs
+output/
+
+# vim
+*.vim
+
+PROPOSAL*

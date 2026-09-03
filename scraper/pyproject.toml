@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "podcast2zim"
+requires-python = ">=3.14, <3.15"
+description = "Make a ZIM file from a podcast"
+#readme = "../README.md"
+dependencies = [
+    "feedparser==6.0.14",
+    "requests==2.34.0",
+    "pyhumps==3.8.0",
+    "pydantic==2.13.4",
+    "zimscraperlib==5.4.1",
+    "kiwixstorage==0.10.1",
+    "pif==0.8.2",
+    "schedule==1.2.2",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+lint = ["black==26.5.1", "ruff==0.16.2", "isort==8.0.1"]
+test=["pytest==9.1.1"]
+check = ["pyright==1.1.411"]
+
+[project.scripts]
+podcast2zim = "podcast2zim.__main__:main"
+
+[tool.hatch.version]
+path = "src/podcast2zim/__about__.py"
+
+[tool.black]
+line-length = 88
+target-version = ["py314"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "I", # isort
+    "TID", # flake-tidy-imports
+]
+ignore = ["I001"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["podcast2zim"]
+
+[tool.pyright]
+include=["src", "tests"]
+pythonVersion = "3.14"
+typeCheckingMode = "basic"
