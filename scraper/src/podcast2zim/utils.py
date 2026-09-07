@@ -3,7 +3,9 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup
+from rich.progress import Progress
 
 AUDIO_EXTENSIONS = {
     "audio/mpeg": ".mp3",
@@ -25,7 +27,7 @@ def guess_audio_ext(mimetype: str | None, url: str) -> str:
         return AUDIO_EXTENSIONS[mimetype]
 
     url_ext = Path(urlparse(url).path).suffix
-    return url_ext or ".m3"
+    return url_ext or ".mp3"
 
 
 def split_into_paragraphs(text: str) -> list[str]:
@@ -64,3 +66,52 @@ def delete_callback(fpath: str | Path):
     """callback to delete file"""
     if Path(fpath).exists():
         os.unlink(fpath)
+
+
+# Match stream_file logic and add custom download progress
+from zimscraperlib.download import get_session
+
+
+def download_file(
+    url: str,
+    filepath: Path,
+    progress: Progress,
+    task_id=None,
+    block_size: int = 8192,
+    proxies: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+    session: requests.Session | None = None,
+    max_retries: int = 5,
+    timeout: int = 10,
+):
+    """Downloads a file and safely updates a rich progress bar if provided."""
+    if not session:
+        session = get_session(max_retries)
+
+    try:
+        with session.get(
+            url,
+            stream=True,
+            proxies=proxies,
+            headers=headers,
+            timeout=timeout,
+        ) as response:
+            response.raise_for_status()
+
+            # dynamically set the total size one headers arrive
+            if progress and task_id is not None:
+                total_size = int(response.headers.get("content-length", 0))
+                progress.update(task_id, total=total_size)
+
+            with open(filepath, "wb") as file:
+                for chunk in response.iter_content(chunk_size=block_size):
+                    file.write(chunk)
+
+                    # update the specific bar tied to this download
+                    if progress and task_id is not None:
+                        progress.update(task_id=task_id, advance=len(chunk))
+
+    finally:
+        # clear progress bar immediately
+        if progress and task_id is not None:
+            progress.remove_task(task_id)

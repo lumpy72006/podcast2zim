@@ -16,6 +16,8 @@ dependencies = [
     "kiwixstorage==0.10.1",
     "pif==0.8.2",
     "schedule==1.2.2",
+    "rich==15.0.0",
+    "beautifulsoup4==4.15.0",
 ]
 dynamic = ["version"]
 

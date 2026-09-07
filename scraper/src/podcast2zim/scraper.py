@@ -10,9 +10,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
-from botocore import config
 from kiwixstorage import KiwixStorage
 from pif import get_public_ip
+from rich.console import Console
+from rich.progress import Progress
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.conversion import convert_image
 from zimscraperlib.image.presets import WebpHigh
@@ -24,10 +25,10 @@ from zimscraperlib.zim import Creator, metadata
 from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
-from podcast2zim.constants import SCRAPER, logger
+from podcast2zim.constants import SCRAPER, console, logger
 from podcast2zim.feed import EpisodeData, parse_feed, resolve_url
 from podcast2zim.schemas import Config, Episode, EpisodePreview, Podcast
-from podcast2zim.utils import delete_callback, guess_audio_ext
+from podcast2zim.utils import delete_callback, download_file, guess_audio_ext
 
 DEFAULT_COVER_PATH = str(files("podcast2zim.assets") / "mic-svgrepo-com.png")
 
@@ -114,9 +115,6 @@ class Podcast2Zim:
 
     def run(self):
         try:
-            # first report => creates a file with appropriate structure
-            self.report_progress()
-
             self.validate_dateafter_input()
 
             if not self.name:
@@ -422,7 +420,7 @@ class Podcast2Zim:
             logger.error(f"File {fpath} does not exist")
             return
 
-        logger.debug(f"Adding {path} to ZIM")
+        # logger.debug(f"Adding {path} to ZIM")
         self.zim_file.add_item_for(
             path,
             fpath=fpath,
@@ -526,7 +524,7 @@ class Podcast2Zim:
         logger.info(f"uploaded {dest_path} to cache at {key}")
         return True
 
-    def download_ep_audio(self, episode: EpisodeData):
+    def download_ep_audio(self, episode: EpisodeData, progress: Progress):
         """download the episode's audio from cache or stream it. Return True if successful"""
 
         episode_location = self.episodes_dir.joinpath(episode.id)
@@ -556,7 +554,14 @@ class Podcast2Zim:
 
         try:
             logger.debug(f"Downloading audio file for {episode.title} from {audio_url}")
-            stream_file(audio_url, audio_path)
+
+            task_id = None
+            if progress:
+                task_id = progress.add_task(
+                    f"audio: {episode.title[:30]}...", start=True
+                )
+
+            download_file(audio_url, audio_path, progress, task_id)
 
             self.add_file_to_zim(
                 zim_path,
@@ -575,7 +580,7 @@ class Podcast2Zim:
                 self.upload_to_cache(s3_key, audio_path)
             return True
 
-    def download_ep_thumbnail(self, episode: EpisodeData):
+    def download_ep_thumbnail(self, episode: EpisodeData, progress: Progress):
         """download the episode's thumbnail from cache/stream and return True if successful"""
 
         episode_location = self.episodes_dir.joinpath(episode.id)
@@ -609,7 +614,13 @@ class Podcast2Zim:
             ext = Path(parsed_url.path).suffix or "png"
             tmp_thumbnail_path = episode_location.joinpath(f"tmp_thumbnail{ext}")
 
-            stream_file(episode.thumbnail_url, tmp_thumbnail_path)
+            task_id = None
+            if progress:
+                task_id = progress.add_task(
+                    f"thumbnail: {episode.title[:30]}...", start=True
+                )
+
+            download_file(episode.thumbnail_url, tmp_thumbnail_path, progress, task_id)
 
             convert_image(tmp_thumbnail_path, thumbnail_path)
 
@@ -631,7 +642,9 @@ class Podcast2Zim:
                 self.upload_to_cache(s3_key, thumbnail_path, preset.VERSION)
             return True
 
-    def download_episode_files_batch(self, episodes: list[EpisodeData]):
+    def download_episode_files_batch(
+        self, episodes: list[EpisodeData], progress: Progress
+    ):
         """
         download episode file and thumbnail for all episodes in batch
         return succeeded and failed episode titles
@@ -639,10 +652,11 @@ class Podcast2Zim:
         succeeded = []
         failed = []
         for episode in episodes:
-            # an audio wihtout a thumbnail == success
-            logger.info(f"downloading {episode.title!r}")
-            if self.download_ep_audio(episode):
-                if episode.thumbnail_url and not self.download_ep_thumbnail(episode):
+            # an audio wihtout a thumbnail is a success?
+            if self.download_ep_audio(episode, progress):
+                if episode.thumbnail_url and not self.download_ep_thumbnail(
+                    episode, progress
+                ):
                     logger.warning(
                         f"Thumbnail for {episode.title} failed; continuing without one"
                     )
@@ -654,7 +668,8 @@ class Podcast2Zim:
                 self.episodes_processed += 1
                 done = self.episodes_processed
 
-            logger.info(f"[{done}/{self.episodes_count}] done: {episode.title!r}")
+            logger.info(f"[{done}/{self.episodes_count}] finished {episode.title!r}")
+
         return succeeded, failed
 
     def download_episode_files(self, max_concurrency: int):
@@ -664,9 +679,12 @@ class Podcast2Zim:
 
         # short-circuit concurrency if we have only one thread (can help debug)
         if concurrency <= 1:
-            result = self.download_episode_files_batch(self.podcast_data.episodes)
-            self.report_progress()
-            return result
+            with Progress(console=console, transient=True) as progress:
+                result = self.download_episode_files_batch(
+                    self.podcast_data.episodes, progress
+                )
+                self.report_progress()
+                return result
 
         # prepare episodes in batches
         def get_slot():
@@ -685,20 +703,25 @@ class Podcast2Zim:
         overall_succeeded = []
         overall_failed = []
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-            fs = [
-                executor.submit(self.download_episode_files_batch, episodes)
-                for episodes in batches
-            ]
+        with Progress(console=console, transient=True) as progress:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=concurrency
+            ) as executor:
+                fs = [
+                    executor.submit(
+                        self.download_episode_files_batch, episodes, progress
+                    )
+                    for episodes in batches
+                ]
 
-            # as_completed naturally lets each future.result() raise if that
-            # future's callable threw and unhandled exception
-            for future in concurrent.futures.as_completed(fs):
-                succeeded, failed = future.result()
-                overall_succeeded += succeeded
-                overall_failed += failed
+                # as_completed naturally lets each future.result() raise if that
+                # future's callable threw and unhandled exception
+                for future in concurrent.futures.as_completed(fs):
+                    succeeded, failed = future.result()
+                    overall_succeeded += succeeded
+                    overall_failed += failed
 
-                self.report_progress()
+                    self.report_progress()
 
         # remove leftover files for failed downloads
         logger.debug(
@@ -829,3 +852,5 @@ class Podcast2Zim:
             mimetype="application/json",
             is_front=False,
         )
+
+        remove_unused_episodes()
