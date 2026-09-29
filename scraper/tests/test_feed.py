@@ -1,9 +1,10 @@
 import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import requests
 from feedparser.util import FeedParserDict
+from pytest_mock import MockerFixture
 
 from podcast2zim.feed import (
     EpisodeData,
@@ -19,9 +20,8 @@ APPLE_PODCASTS_URL = "https://podcasts.apple.com/us/podcast/the-daily/id12003617
 
 
 @pytest.fixture
-def mock_get():
-    with patch("podcast2zim.feed.requests.get") as mock:
-        yield mock
+def mock_get(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch("podcast2zim.feed.requests.get")
 
 
 def create_mock_entry(**overrides) -> FeedParserDict:
@@ -97,11 +97,9 @@ def test_resolve_url_raises_error_on_no_feed_url(mock_get: MagicMock):
 
 
 ################ parse feed tests
-
-
-@patch("podcast2zim.feed.feedparser.parse")
-def test_parse_feed_raises_error_on_bozo_exception(mock_parse: MagicMock):
+def test_parse_feed_raises_error_on_bozo_exception(mocker: MockerFixture):
     bozo_exception = "XML is broken"
+    mock_parse = mocker.patch("podcast2zim.feed.feedparser.parse")
     mock_parse.return_value = FeedParserDict(
         {
             "bozo": True,
@@ -114,8 +112,8 @@ def test_parse_feed_raises_error_on_bozo_exception(mock_parse: MagicMock):
         parse_feed("https://feeds.simplecast.com/Sl5CSM3S")
 
 
-@patch("podcast2zim.feed.feedparser.parse")
-def test_parse_feed_ignores_bozo_exception_when_entries_present(mock_parse: MagicMock):
+def test_parse_feed_ignores_bozo_exception_when_entries_present(mocker: MockerFixture):
+    mock_parse = mocker.patch("podcast2zim.feed.feedparser.parse")
     mock_parse.return_value = FeedParserDict(
         {
             "bozo": True,
@@ -136,13 +134,11 @@ def test_parse_feed_ignores_bozo_exception_when_entries_present(mock_parse: Magi
     assert result.title == "Nihongo con Teppei"
     assert len(result.episodes) == 1
     assert result.episodes[0].title == "Genki"
-    assert result.description == [
-        "This feed may not be well formed but still has entries."
-    ]
+    assert result.summary == "This feed may not be well formed but still has entries."
 
 
-@patch("podcast2zim.feed.feedparser.parse")
-def test_parse_feed_handles_multiple_entries(mock_parse: MagicMock):
+def test_parse_feed_handles_multiple_entries(mocker: MockerFixture):
+    mock_parse = mocker.patch("podcast2zim.feed.feedparser.parse")
     mock_parse.return_value = FeedParserDict(
         {
             "bozo": False,
@@ -213,7 +209,7 @@ def test_extract_episode_handles_missing_metadata_gracefully():
     assert isinstance(result, EpisodeData)
     assert result.id == "https://example.com/audio.mp3"
     assert result.title == "Untitled episode"
-    assert result.description == []
+    assert result.summary == ""
     assert result.duration == 0
     assert result.published is None
     assert result.audio_url == result.id
