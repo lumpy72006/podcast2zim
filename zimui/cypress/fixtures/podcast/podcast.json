@@ -1,0 +1,26 @@
+{
+  "title": "Uncharted with Hannah Fry",
+  "summary": "Hannah Fry follows the numbers on thrilling journeys of data and discovery.",
+  "author": "BBC Radio 4",
+  "language": "en",
+  "artworkPath": "cover.jpg",
+  "episodeCount": 2,
+  "episodes": [
+    {
+      "id": "ep-20",
+      "title": "20. The Confidence Trick",
+      "duration": 1059,
+      "published": "2024-09-09T00:00:00Z",
+      "thumbnailPath": "episodes/ep-20/thumbnail.webp",
+      "summary": "An ambitious portfolio manager stumbles upon a perfect graph. It outlines eye watering profits. But something doesn't quite add up - could this graph be accurate? Or does it hide a far more sinister truth?"
+    },
+    {
+      "id": "ep-01",
+      "title": "1. The Returning Soldier",
+      "duration": 880,
+      "published": "2023-09-25T00:00:00Z",
+      "thumbnailPath": null,
+      "summary": "It's 1973 and the UK is in crisis: runaway inflation, industrial strike action and political turmoil. Unnoticed at the time, something odd is happening in hospitals across the country."
+    }
+  ]
+}
