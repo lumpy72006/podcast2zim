@@ -1,13 +1,14 @@
-from humps import camelize
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class CamelModel(BaseModel):
     """Model to transform Pyhton snake_case into JSON camelCase"""
 
-    class Config:
-        alias_generator = camelize
-        populate_by_name = True
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
 
 
 class Episode(CamelModel):
@@ -15,7 +16,7 @@ class Episode(CamelModel):
 
     id: str
     title: str
-    description: list[str]
+    summary: str
     duration: int
     published: str
     audio_path: str
@@ -36,7 +37,7 @@ class Podcast(CamelModel):
     """Class to serialize data about a podcast"""
 
     title: str
-    description: list[str]
+    summary: str
     author: str
     language: str
     artwork_path: str | None = None

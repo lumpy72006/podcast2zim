@@ -7,7 +7,7 @@ import requests
 from feedparser.util import FeedParserDict
 
 from podcast2zim.constants import logger
-from podcast2zim.utils import normalize_duration, split_into_paragraphs
+from podcast2zim.utils import clean_summary, normalize_duration
 
 APPLE_PODCASTS_URL_RE = re.compile(r"podcasts\.apple\.com/.+/id(?P<apple_id>\d+)")
 ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
@@ -29,7 +29,7 @@ class FeedParseError(FeedError):
 class EpisodeData:
     id: str
     title: str
-    description: list[str]
+    summary: str
     duration: int
     published: datetime.datetime | None
     audio_url: str
@@ -40,7 +40,7 @@ class EpisodeData:
 @dataclass
 class PodcastData:
     title: str
-    description: list[str]
+    summary: str
     author: str
     language: str
     artwork_url: str | None
@@ -119,7 +119,7 @@ def _extract_episode(
     return EpisodeData(
         id=episode_id,
         title=getattr(entry, "title", None) or "Untitled episode",
-        description=split_into_paragraphs(getattr(entry, "summary", "")),
+        summary=clean_summary(getattr(entry, "summary", "")),
         duration=normalize_duration(getattr(entry, "itunes_duration", None)),
         published=published,
         audio_url=audio_enclosure["href"],
@@ -152,7 +152,7 @@ def parse_feed(feed_url: str) -> PodcastData:
 
     return PodcastData(
         title=getattr(feed, "title", "Untitled"),
-        description=split_into_paragraphs(getattr(feed, "summary", "")),
+        summary=clean_summary(getattr(feed, "summary", "")),
         author=getattr(feed, "author", ""),
         language=getattr(feed, "language", "en"),
         artwork_url=default_img_url,

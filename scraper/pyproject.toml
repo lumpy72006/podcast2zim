@@ -10,14 +10,13 @@ description = "Make a ZIM file from a podcast"
 dependencies = [
     "feedparser==6.0.14",
     "requests==2.34.0",
-    "pyhumps==3.8.0",
     "pydantic==2.13.4",
     "zimscraperlib==5.4.1",
     "kiwixstorage==0.10.1",
     "pif==0.8.2",
-    "schedule==1.2.2",
     "rich==15.0.0",
     "beautifulsoup4==4.15.0",
+    "pytest-mock==3.15.1",
 ]
 dynamic = ["version"]
 
@@ -42,6 +41,7 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = [
+    "F", # pyflakes - includes F401 unused imports
     "I", # isort
     "TID", # flake-tidy-imports
 ]

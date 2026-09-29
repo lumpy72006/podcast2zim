@@ -9,10 +9,8 @@ from importlib.resources import files
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
 from kiwixstorage import KiwixStorage
 from pif import get_public_ip
-from rich.console import Console
 from rich.progress import Progress
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.conversion import convert_image
@@ -38,17 +36,18 @@ class Podcast2Zim:
         self,
         feed_url: str,
         name: str,
-        output_dir,
+        output_dir: str,
         fname: str,
         stats_filename: str,
-        tmp_dir,
-        zimui_dist,
-        s3_url_with_credentials,
-        use_any_optimized_version,
-        max_concurrency,
-        tags,
-        language,
-        publisher,
+        tmp_dir: str,
+        zimui_dist: str,
+        s3_url_with_credentials: str,
+        use_any_optimized_version: bool,
+        max_concurrency: int,
+        tags: str,
+        language: str,
+        publisher: str,
+        disable_metadata_checks: bool,
         title: str | None = None,
         creator: str | None = None,
         description: str | None = None,
@@ -73,23 +72,40 @@ class Podcast2Zim:
         self.cover_image = cover_image
         self.main_color = main_color
         self.secondary_color = secondary_color
+        self.disable_metadata_checks = disable_metadata_checks
         self.max_episodes = max_episodes
         self.dateafter = dateafter
         self.max_concurrency = max_concurrency
         self.dateafter_datetime = None
 
+        metadata.APPLY_RECOMMENDATIONS = not self.disable_metadata_checks
+
+        if not self.disable_metadata_checks:
+            # Validate ZIM metadata early so we don't waste time doing operaions
+            # for a scraper which will fail anyway
+            if self.tags:
+                metadata.TagsMetadata(self.tags)
+            if self.title:
+                metadata.TitleMetadata(self.title)
+            if self.description:
+                metadata.DescriptionMetadata(self.description)
+            if self.long_description:
+                metadata.LongDescriptionMetadata(self.long_description)
+
         # directory setup
         self.output_dir = Path(output_dir).expanduser().resolve()
+        temp_dir = None
         if tmp_dir:
-            tmp_dir = Path(tmp_dir).expanduser().resolve()
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.build_dir = Path(tempfile.mkdtemp(dir=tmp_dir))
+            temp_dir = Path(tmp_dir).expanduser().resolve()
+            temp_dir.mkdir(parents=True, exist_ok=True)
+        self.build_dir = Path(tempfile.mkdtemp(dir=temp_dir))
         self.zimui_dist = Path(zimui_dist)
 
         # process-related
         self.episodes_processed = 0
         self.episodes_count = 0
         self.audios_zim_path = {}
+        self.thumbnails_zim_path = {}
         self._progress_lock = threading.Lock()
 
         # optimization cache
@@ -326,17 +342,9 @@ class Podcast2Zim:
         Colors are checked for validity"""
 
         # skip if none of related values were supplied
-        if not sum(
-            [
-                bool(x)
-                for x in (
-                    self.cover_image,
-                    self.main_color,
-                    self.secondary_color,
-                )
-            ]
-        ):
+        if not any((self.cover_image, self.main_color, self.secondary_color)):
             return
+
         logger.info("checking your branding files and values")
         if self.cover_image:
             if isinstance(self.cover_image, str) and self.cover_image.startswith(
@@ -363,8 +371,8 @@ class Podcast2Zim:
             )
 
     def update_metadata(self):
-        self.title = self.title or self.podcast_data.title
-        auto_description = "\n\n".join(self.podcast_data.description) or "-"
+        self.title = self.title or self.podcast_data.title or "-"
+        auto_description = self.podcast_data.summary or "-"
         self.description, self.long_description = compute_descriptions(
             default_description=auto_description,
             user_description=self.description,
@@ -553,7 +561,9 @@ class Podcast2Zim:
                 return True
 
         try:
-            logger.debug(f"Downloading audio file for {episode.title} from {audio_url}")
+            logger.debug(
+                f"Downloading audio file for {episode.title!r} from {audio_url}"
+            )
 
             task_id = None
             if progress:
@@ -601,11 +611,12 @@ class Podcast2Zim:
                     thumbnail_path,
                     callback=Callback(delete_callback, args=(thumbnail_path,)),
                 )
+                self.thumbnails_zim_path.update({episode.id: zim_path})
                 return True
 
         try:
             logger.debug(
-                f"Downloading thumbnail for {episode.title} from {episode.thumbnail_url}"
+                f"Downloading thumbnail for {episode.title!r} from {episode.thumbnail_url}"
             )
             # to remove type checker warnings
             assert isinstance(episode.thumbnail_url, str)
@@ -629,6 +640,7 @@ class Podcast2Zim:
                 thumbnail_path,
                 callback=Callback(delete_callback, args=(thumbnail_path,)),
             )
+            self.thumbnails_zim_path.update({episode.id: zim_path})
 
             tmp_thumbnail_path.unlink(missing_ok=True)
 
@@ -771,19 +783,15 @@ class Podcast2Zim:
         episode_previews: list[EpisodePreview] = []
 
         for ep in successful_episodes:
-            thumbnail_path = (
-                f"episodes/{ep.id}/thumbnail.webp" if ep.thumbnail_url else None
-            )
-
-            audio_ext = guess_audio_ext(ep.audio_mimetype, ep.audio_url)
-            audio_path = f"episodes/{ep.id}/audio{audio_ext}"
+            audio_path = self.audios_zim_path.get(ep.id)
+            thumbnail_path = self.thumbnails_zim_path.get(ep.id)
 
             published = ep.published.isoformat() if ep.published else ""
 
             episode_obj = Episode(
                 id=ep.id,
                 title=ep.title,
-                description=ep.description,
+                summary=ep.summary,
                 duration=ep.duration,
                 published=published,
                 audio_path=audio_path,
@@ -803,7 +811,7 @@ class Podcast2Zim:
             # description is a list of str, so join for the index
             self.add_custom_item_to_zim_index(
                 episode_obj.title,
-                "".join(episode_obj.description),
+                episode_obj.summary,
                 ep.id,
                 f"episode/{ep.id}",
             )
@@ -820,7 +828,7 @@ class Podcast2Zim:
 
         podcast_obj = Podcast(
             title=self.podcast_data.title,
-            description=self.podcast_data.description,
+            summary=self.podcast_data.summary,
             author=self.podcast_data.author,
             language=self.podcast_data.language,
             artwork_path=f"cover{self._cover_ext}",
@@ -838,7 +846,7 @@ class Podcast2Zim:
 
         self.add_custom_item_to_zim_index(
             podcast_obj.title,
-            "".join(podcast_obj.description),
+            podcast_obj.summary,
             "podcast",
             "podcast",
         )

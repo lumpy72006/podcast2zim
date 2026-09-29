@@ -62,9 +62,12 @@ def main():
     parser.add_argument(
         "--use-any-optimized-version",
         help="Use the cached files if present.",
-        action="store_true",  # defaults to False
+        action="store_true",
+        default=False,
     )
-    parser.add_argument("--debug", help="Enable verbose output.", action="store_true")
+    parser.add_argument(
+        "--debug", help="Enable verbose output.", action="store_true", default=False
+    )
     parser.add_argument(
         "--concurrency",
         help="Number of concurrent threads to use",
@@ -74,7 +77,8 @@ def main():
     )
     parser.add_argument(
         "--title",
-        help="Custom title for your project and ZIM. Defaults podcast's name.",
+        help="Custom title for your project and ZIM. "
+        "Defaults to podcast's title (if title <= 30 graphemes).",
     )
     parser.add_argument(
         "--creator",
@@ -91,7 +95,9 @@ def main():
         "Defaults to podcast level summary.",
     )
     parser.add_argument(
-        "--long-description", help="Custom long description for your ZIM."
+        "--long-description",
+        help="Custom long description for your ZIM. "
+        "Defaults to podcast level summary (longer)",
     )
     parser.add_argument(
         "--language",
@@ -123,9 +129,22 @@ def main():
         type=int,
     )
     parser.add_argument(
+        "--disable-metadata-checks",
+        help="disable validity checks of metadata according to openZIM conventions",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--dateafter",
         help="Custom filter to download episodes uploaded on or after specified date. "
         "Format: YYYYMMDD",
+    )
+
+    parser.add_argument(
+        "--version",
+        help="Display scraper version and exit",
+        action="version",
+        version=SCRAPER,
     )
 
     args = parser.parse_args()
@@ -139,12 +158,6 @@ def main():
             raise ValueError(f"Invalid concurrency value: {args.max_concurrency}")
         scraper = Podcast2Zim(**args_dict)
 
-        # print(args)
-        # print()
-        # print(args_dict)
-        # print()
-        # print(scraper)
-        # print(str(Path(__file__).parent / "zimui"))
         return scraper.run()
     except Exception as exc:
         logger.error(f"FAILED. An error occured: {exc}")

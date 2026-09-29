@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -30,16 +29,9 @@ def guess_audio_ext(mimetype: str | None, url: str) -> str:
     return url_ext or ".mp3"
 
 
-def split_into_paragraphs(text: str) -> list[str]:
-    """Split feed-sourced text into paragraphs, collapsing noisy whitespace
-    within each paragraph while preserving blank-line paragraph breaks."""
-    # feed descriptions may have html tags so clean first
-    cleaned_text = BeautifulSoup(text, "html.parser").get_text()
-
-    paragraphs = re.split(r"\n\s*\n", cleaned_text)
-    return [
-        cleaned for para in paragraphs if (cleaned := re.sub(r"\s+", " ", para).strip())
-    ]
+def clean_summary(text: str) -> str:
+    """Strip HTML tags from feed-sourced text"""
+    return BeautifulSoup(text, "html.parser").get_text().strip()
 
 
 def normalize_duration(raw: str | int | None) -> int:
@@ -75,7 +67,7 @@ from zimscraperlib.download import get_session
 def download_file(
     url: str,
     filepath: Path,
-    progress: Progress,
+    progress: Progress | None,
     task_id=None,
     block_size: int = 8192,
     proxies: dict[str, str] | None = None,
