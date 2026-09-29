@@ -405,17 +405,17 @@ class Podcast2Zim:
             self.secondary_color = self.secondary_color or profile_secondary
 
         # convert cover image to png for favicon
-        png_cover_path = self.build_dir.joinpath("cover.png")
-        convert_image(self.cover_path, png_cover_path)
+        favicon_source_path = self.build_dir.joinpath("favicon-source.png")
+        convert_image(self.cover_path, favicon_source_path)
 
         resize_image(
-            png_cover_path,
+            favicon_source_path,
             width=48,
             height=48,
             method="thumbnail",
             dst=self.build_dir.joinpath("favicon.png"),
         )
-        png_cover_path.unlink()
+        favicon_source_path.unlink()
 
     def add_file_to_zim(
         self,
