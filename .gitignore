@@ -8,7 +8,6 @@ __pycache__/
 
 # script outputs
 output/
-*.json
 
 # vim
 *.vim

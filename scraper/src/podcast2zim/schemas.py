@@ -28,6 +28,7 @@ class EpisodePreview(CamelModel):
 
     id: str
     title: str
+    summary: str
     duration: int
     published: str
     thumbnail_path: str | None = None

@@ -820,6 +820,7 @@ class Podcast2Zim:
                 EpisodePreview(
                     id=ep.id,
                     title=ep.title,
+                    summary=ep.summary,
                     duration=ep.duration,
                     published=published,
                     thumbnail_path=thumbnail_path,
