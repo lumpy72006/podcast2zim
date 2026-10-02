@@ -2,10 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 
+import { useMainStore } from '@/stores/main'
 import type { EpisodePreview } from '@/types/Podcast'
 import EpisodeCard from '@/components/episode/EpisodeCard.vue'
 
 const { mdAndDown } = useDisplay()
+const main = useMainStore()
 
 const props = defineProps<{
   episodes: EpisodePreview[]
@@ -14,20 +16,19 @@ const props = defineProps<{
 const PAGE_SIZE = 24
 
 const query = ref('')
-const newestFirst = ref(true)
 const visibleCount = ref(PAGE_SIZE)
 
 // podcast.json is newest first; filter by title and apply the chosen order
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   const list = q ? props.episodes.filter((e) => e.title.toLowerCase().includes(q)) : props.episodes
-  return newestFirst.value ? list : [...list].reverse()
+  return main.episodesNewestFirst ? list : [...list].reverse()
 })
 
 const items = computed(() => filtered.value.slice(0, visibleCount.value))
 
 // start again from the first page whenever the list changes
-watch([query, newestFirst], () => {
+watch([query, () => main.episodesNewestFirst], () => {
   visibleCount.value = PAGE_SIZE
 })
 
@@ -54,10 +55,12 @@ const load = ({ done }: { done: (status: 'ok' | 'empty') => void }) => {
       <v-col cols="12" sm="auto" class="d-flex justify-end">
         <v-btn
           variant="text"
-          :prepend-icon="newestFirst ? 'mdi-sort-calendar-descending' : 'mdi-sort-calendar-ascending'"
-          @click="newestFirst = !newestFirst"
+          :prepend-icon="
+            main.episodesNewestFirst ? 'mdi-sort-calendar-descending' : 'mdi-sort-calendar-ascending'
+          "
+          @click="main.toggleEpisodesSortOrder()"
         >
-          {{ newestFirst ? 'Newest first' : 'Oldest first' }}
+          {{ main.episodesNewestFirst ? 'Newest first' : 'Oldest first' }}
         </v-btn>
       </v-col>
     </v-row>
@@ -67,7 +70,7 @@ const load = ({ done }: { done: (status: 'ok' | 'empty') => void }) => {
     </p>
     <v-infinite-scroll
       v-else
-      :key="`${query}-${newestFirst}`"
+      :key="`${query}-${main.episodesNewestFirst}`"
       class="h-full overflow-hidden"
       :items="items"
       empty-text=""

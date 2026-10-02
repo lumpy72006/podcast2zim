@@ -4,22 +4,20 @@ import { useRoute } from 'vue-router'
 import { useDisplay } from 'vuetify'
 
 import { useMainStore } from '@/stores/main'
+import { usePlayerStore } from '@/stores/player'
 import type { Episode } from '@/types/Podcast'
-import { assetUrl, formatDate, formatDuration } from '@/utils/format-utils'
+import { formatDate, formatDuration } from '@/utils/format-utils'
 import { formatDescription } from '@/utils/description-utils'
 import AudioPlayer from '@/components/episode/AudioPlayer.vue'
 import CoverImage from '@/components/podcast/CoverImage.vue'
 
 const route = useRoute()
 const main = useMainStore()
+const player = usePlayerStore()
 const { mdAndDown } = useDisplay()
 
 const episode = ref<Episode>()
 const isLoading = ref(true)
-// the feed's <itunes:duration> is frequently wrong (dynamic ad insertion
-// changes the real file length); this holds the real, measured duration
-// once AudioPlayer has loaded the file, so the header can show that instead
-const measuredDuration = ref<number>()
 
 // vue-router gives the decoded id, exactly as stored in podcast.json
 const episodeId = computed(() => String(route.params.id))
@@ -27,7 +25,6 @@ const episodeId = computed(() => String(route.params.id))
 const load = async () => {
   isLoading.value = true
   episode.value = undefined
-  measuredDuration.value = undefined
   try {
     // podcast.json is needed for prev/next and for deep links opened from ZIM search
     await main.fetchPodcast()
@@ -53,15 +50,19 @@ const older = computed(() =>
   index.value >= 0 ? main.podcast?.episodes[index.value + 1] : undefined
 )
 
-const audioSrc = computed(() => assetUrl(episode.value?.audioPath) ?? '')
 // fall back to the podcast cover when the episode has no thumbnail of its own
 const artwork = computed(() => episode.value?.thumbnailPath || main.podcast?.artworkPath)
 const description = computed(() => formatDescription(episode.value?.summary ?? ''))
+
+// the feed's <itunes:duration> is frequently wrong (dynamic ad insertion
+// changes the real file length); once this episode is the one actually
+// loaded in the shared player, show its real measured duration instead
+const isCurrent = computed(() => player.episode?.id === episode.value?.id)
+const displayDuration = computed(() =>
+  isCurrent.value && player.duration ? player.duration : (episode.value?.duration ?? 0)
+)
 const meta = computed(() =>
-  [
-    formatDate(episode.value?.published ?? ''),
-    formatDuration(measuredDuration.value ?? episode.value?.duration ?? 0)
-  ]
+  [formatDate(episode.value?.published ?? ''), formatDuration(displayDuration.value)]
     .filter(Boolean)
     .join(' · ')
 )
@@ -87,11 +88,7 @@ const meta = computed(() =>
         <h1 class="text-h5 text-md-h4 font-weight-bold text-wrap">{{ episode.title }}</h1>
         <p v-if="meta" class="text-body-2 text-medium-emphasis mt-1 mb-4">{{ meta }}</p>
 
-        <audio-player
-          :src="audioSrc"
-          :fallback-duration="episode.duration"
-          @duration="measuredDuration = $event"
-        />
+        <audio-player :episode="episode" />
 
         <div class="d-flex justify-space-between mt-3">
           <v-btn

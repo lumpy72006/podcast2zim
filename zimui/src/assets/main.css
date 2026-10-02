@@ -25,10 +25,6 @@ a {
   -webkit-text-size-adjust: 100%;
 }
 
-.banner-bg .v-img__img--preload {
-  filter: none;
-}
-
 /* roboto-latin-100-normal */
 @font-face {
   font-family: 'Roboto';
@@ -115,15 +111,6 @@ a {
 
 .v-btn {
   display: flex !important;
-}
-
-.v-slide-group__content {
-  align-items: center;
-  justify-content: center;
-}
-
-.v-avatar img {
-  border-radius: 100%;
 }
 
 .v-btn__content > .v-icon--start {

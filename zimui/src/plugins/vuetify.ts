@@ -1,9 +1,9 @@
 import 'vuetify/styles'
-import '@mdi/font/css/materialdesignicons.css'
 import axios from 'axios'
 import { createVuetify } from 'vuetify'
 import type { Config } from '@/types/Podcast'
 import { lighten, luminance, normalizeHex, readableOn } from '@/utils/color-utils'
+import { podcastIcons } from '@/plugins/podcast-icons'
 
 async function loadVuetify() {
   let primaryColor = '#3f51b5'
@@ -57,6 +57,10 @@ async function loadVuetify() {
   }
 
   return createVuetify({
+    icons: {
+      defaultSet: 'podcast',
+      sets: { podcast: podcastIcons }
+    },
     theme: {
       defaultTheme: prefersDark ? 'zimuiDark' : 'zimuiLight',
       variations: {

@@ -37,13 +37,6 @@ export const formatDate = (date: string, format: string = 'MMM D, YYYY'): string
   return parsed.isValid() ? parsed.format(format) : ''
 }
 
-export const truncateText = (text: string, maxLength: number): string => {
-  if (text.length > maxLength) {
-    return `${text.slice(0, maxLength)}...`
-  }
-  return text
-}
-
 /**
  * Build a URL relative to index.html for a path stored in the ZIM.
  * Each path segment is percent-encoded because episode ids come from feed

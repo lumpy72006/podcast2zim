@@ -3,14 +3,27 @@ import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 
 import { useMainStore } from '@/stores/main'
+import { usePlayerStore } from '@/stores/player'
 import CoverImage from '@/components/podcast/CoverImage.vue'
 import AboutDialogButton from '@/components/podcast/AboutDialogButton.vue'
 
 const { mdAndDown, smAndDown } = useDisplay()
 const main = useMainStore()
+const player = usePlayerStore()
 
 // podcast.json lists episodes newest first
-const latestEpisodeId = computed(() => main.podcast?.episodes[0]?.id)
+const latestEpisode = computed(() => main.podcast?.episodes[0])
+const isPlayingLatest = computed(
+  () => !!latestEpisode.value && player.episode?.id === latestEpisode.value.id && player.isPlaying
+)
+
+const togglePlayLatest = () => {
+  if (isPlayingLatest.value) {
+    player.toggle()
+  } else if (latestEpisode.value) {
+    player.playPreview(latestEpisode.value)
+  }
+}
 </script>
 
 <template>
@@ -38,13 +51,13 @@ const latestEpisodeId = computed(() => main.podcast?.episodes[0]?.id)
             </p>
             <div class="d-flex flex-wrap ga-3 mt-4 justify-center justify-md-start">
               <v-btn
-                v-if="latestEpisodeId"
+                v-if="latestEpisode"
                 variant="flat"
                 class="play-btn"
-                prepend-icon="mdi-play"
-                :to="{ name: 'episode', params: { id: latestEpisodeId } }"
+                :prepend-icon="isPlayingLatest ? 'mdi-pause' : 'mdi-play'"
+                @click="togglePlayLatest"
               >
-                Play latest
+                {{ isPlayingLatest ? 'Playing latest' : 'Play latest' }}
               </v-btn>
               <about-dialog-button
                 v-if="main.podcast"

@@ -3,17 +3,32 @@ import { computed } from 'vue'
 
 import type { EpisodePreview } from '@/types/Podcast'
 import { formatDate, formatDuration } from '@/utils/format-utils'
+import { usePlayerStore } from '@/stores/player'
 import CoverImage from '@/components/podcast/CoverImage.vue'
 
 const props = defineProps<{
   episode: EpisodePreview
 }>()
 
+const player = usePlayerStore()
+
 const meta = computed(() =>
   [formatDate(props.episode.published), formatDuration(props.episode.duration)]
     .filter(Boolean)
     .join(' · ')
 )
+
+const isCurrent = computed(() => player.episode?.id === props.episode.id)
+const isPlaying = computed(() => isCurrent.value && player.isPlaying)
+
+// this is the row's own control: it must not trigger the row's link navigation
+const onPlayClick = () => {
+  if (isCurrent.value) {
+    player.toggle()
+  } else {
+    player.playPreview(props.episode)
+  }
+}
 </script>
 
 <template>
@@ -32,7 +47,15 @@ const meta = computed(() =>
           </p>
           <p v-if="meta" class="text-caption text-medium-emphasis mt-1">{{ meta }}</p>
         </div>
-        <v-icon icon="mdi-play-circle-outline" size="32" color="primary" class="flex-shrink-0" />
+        <v-btn
+          :icon="isPlaying ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"
+          variant="text"
+          size="32"
+          color="primary"
+          class="flex-shrink-0"
+          :aria-label="isPlaying ? 'Pause episode' : 'Play episode'"
+          @click.stop.prevent="onPlayClick"
+        />
       </div>
     </v-card>
   </router-link>

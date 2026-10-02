@@ -7,6 +7,11 @@ export type RootState = {
   isLoading: boolean
   errorMessage: string
   errorDetails: string
+  // lives here (rather than as local state in EpisodeList.vue) so it
+  // survives leaving and returning to the home page -- a component's own
+  // state is torn down and recreated by the router every time, which is
+  // exactly what made this setting appear to "forget" itself
+  episodesNewestFirst: boolean
 }
 
 export const useMainStore = defineStore('main', {
@@ -15,9 +20,13 @@ export const useMainStore = defineStore('main', {
       podcast: null,
       isLoading: false,
       errorMessage: '',
-      errorDetails: ''
+      errorDetails: '',
+      episodesNewestFirst: true
     }) as RootState,
   actions: {
+    toggleEpisodesSortOrder() {
+      this.episodesNewestFirst = !this.episodesNewestFirst
+    },
     /** Load podcast.json once; later calls reuse the loaded data */
     async fetchPodcast(force: boolean = false) {
       if (this.podcast && !force) return this.podcast
