@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from kiwixstorage import KiwixStorage
+from langcodes import Language as lng
 from pif import get_public_ip
 from rich.progress import Progress
 from zimscraperlib.download import stream_file
@@ -201,7 +202,7 @@ class Podcast2Zim:
             self.zim_file.config_metadata(
                 metadata.StandardMetadataList(
                     Name=metadata.NameMetadata(self.fname),
-                    Language=metadata.LanguageMetadata(self.language),
+                    Language=metadata.LanguageMetadata(self.zim_language()),
                     Title=metadata.TitleMetadata(self.title),
                     Creator=metadata.CreatorMetadata(self.creator),
                     Publisher=metadata.PublisherMetadata(self.publisher),
@@ -417,6 +418,17 @@ class Podcast2Zim:
         )
         favicon_source_path.unlink()
 
+    def zim_language(self) -> str:
+        if self.language:
+            return self.language
+        try:
+            return lng.get(self.podcast_data.language).to_alpha3()
+        except (LookupError, ValueError):
+            logger.warning(
+                f"Could not map feed language {self.podcast_data.language}, defaulting to eng"
+            )
+            return "eng"
+
     def add_file_to_zim(
         self,
         path: str,
@@ -581,7 +593,7 @@ class Podcast2Zim:
             self.audios_zim_path.update({episode.id: zim_path})
 
         except Exception as exc:
-            logger.error(f"Audio file for {episode.title} could not be downloaded")
+            logger.error(f"Audio file for {episode.title} could not be downloaded: {exc}")
             logger.debug(exc)
             return False
         else:
@@ -645,7 +657,7 @@ class Podcast2Zim:
             tmp_thumbnail_path.unlink(missing_ok=True)
 
         except Exception as exc:
-            logger.error(f"Thumbnail for {episode.title} could not be downloaded")
+            logger.error(f"Thumbnail for {episode.title} could not be downloaded: {exc}")
             logger.debug(exc)
             return False
         else:

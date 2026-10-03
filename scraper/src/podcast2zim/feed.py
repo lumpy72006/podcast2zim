@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import re
 from dataclasses import dataclass, field
 
@@ -7,7 +8,7 @@ import requests
 from feedparser.util import FeedParserDict
 
 from podcast2zim.constants import logger
-from podcast2zim.utils import clean_summary, normalize_duration
+from podcast2zim.utils import clean_summary, create_episode_id, normalize_duration
 
 APPLE_PODCASTS_URL_RE = re.compile(r"podcasts\.apple\.com/.+/id(?P<apple_id>\d+)")
 ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
@@ -117,7 +118,7 @@ def _extract_episode(
     )
 
     return EpisodeData(
-        id=episode_id,
+        id=create_episode_id(episode_id),
         title=getattr(entry, "title", None) or "Untitled episode",
         summary=clean_summary(getattr(entry, "summary", "")),
         duration=normalize_duration(getattr(entry, "itunes_duration", None)),

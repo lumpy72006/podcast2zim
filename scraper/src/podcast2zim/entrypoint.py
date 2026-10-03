@@ -102,7 +102,6 @@ def main():
     parser.add_argument(
         "--language",
         help="ISO-639-3 (3 chars) language code of content",
-        default="eng",
     )
     parser.add_argument(
         "--tags",

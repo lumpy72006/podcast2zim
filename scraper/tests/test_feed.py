@@ -15,6 +15,7 @@ from podcast2zim.feed import (
     parse_feed,
     resolve_url,
 )
+from podcast2zim.utils import create_episode_id
 
 APPLE_PODCASTS_URL = "https://podcasts.apple.com/us/podcast/the-daily/id1200361736"
 
@@ -163,13 +164,13 @@ def test_parse_feed_handles_multiple_entries(mocker: MockerFixture):
     assert len(result.episodes) == 3
     # verify order
     assert result.episodes[0].title == "Episode 1"
-    assert result.episodes[0].id == "ep-1"
+    assert result.episodes[0].id == create_episode_id("ep-1")
 
     assert result.episodes[1].title == "Episode 2"
-    assert result.episodes[1].id == "ep-2"
+    assert result.episodes[1].id == create_episode_id("ep-2")
 
     assert result.episodes[2].title == "Episode 3"
-    assert result.episodes[2].id == "ep-3"
+    assert result.episodes[2].id == create_episode_id("ep-3")
 
 
 def test_extract_episode_returns_none_if_no_audio():
@@ -192,7 +193,7 @@ def test_extract_episode_builds_full_episode_from_valid_entry():
     result = _extract_episode(entry)
 
     assert isinstance(result, EpisodeData)
-    assert result.id == "123456789"
+    assert result.id == create_episode_id("123456789")
     assert result.title == "Genki"
     assert result.audio_mimetype == "audio/mpeg"
     assert result.published == datetime.datetime(
@@ -207,11 +208,10 @@ def test_extract_episode_handles_missing_metadata_gracefully():
     result = _extract_episode(entry, default_img_url=default_img_url)
 
     assert isinstance(result, EpisodeData)
-    assert result.id == "https://example.com/audio.mp3"
+    assert result.id == create_episode_id("https://example.com/audio.mp3")
     assert result.title == "Untitled episode"
     assert result.summary == ""
     assert result.duration == 0
     assert result.published is None
-    assert result.audio_url == result.id
     assert result.audio_mimetype == "audio/mpeg"
     assert result.thumbnail_url == default_img_url

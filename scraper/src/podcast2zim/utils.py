@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -107,3 +108,8 @@ def download_file(
         # clear progress bar immediately
         if progress and task_id is not None:
             progress.remove_task(task_id)
+
+
+def create_episode_id(id: str) -> str:
+    """create a filesystem and ZIM-path safe episode id"""
+    return hashlib.sha1(id.encode("utf-8")).hexdigest()[:16]
