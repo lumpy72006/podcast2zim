@@ -9,10 +9,23 @@ __pycache__/
 # script outputs
 output/
 
+# Zimui build dist
+scraper/src/youtube2zim/zimui/
+
 # vim
 *.vim
 
 # tmux
 tmux*.log
 
-*.md
+# LSP config files
+pyrightconfig.json
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
