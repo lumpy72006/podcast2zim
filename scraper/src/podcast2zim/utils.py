@@ -17,6 +17,10 @@ AUDIO_EXTENSIONS = {
     "audio/wav": ".wav",
 }
 
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+}
+
 
 def guess_audio_ext(mimetype: str | None, url: str) -> str:
     """
@@ -80,6 +84,8 @@ def download_file(
     """Downloads a file and safely updates a rich progress bar if provided."""
     if not session:
         session = get_session(max_retries)
+
+    headers = headers or DEFAULT_HEADERS
 
     try:
         with session.get(
