@@ -201,7 +201,7 @@ class Podcast2Zim:
             )
             self.zim_file.config_metadata(
                 metadata.StandardMetadataList(
-                    Name=metadata.NameMetadata(self.fname),
+                    Name=metadata.NameMetadata(self.name),
                     Language=metadata.LanguageMetadata(self.zim_language()),
                     Title=metadata.TitleMetadata(self.title),
                     Creator=metadata.CreatorMetadata(self.creator),

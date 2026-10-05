@@ -44,5 +44,5 @@ COPY *.md LICENSE /src/
 RUN pip install --no-cache-dir /src/scraper \
     && rm -rf /src/scraper
 
-CMD ["podcast2zim", "--help"]
-
+ENTRYPOINT ["podcast2zim"]
+CMD ["--help"]
