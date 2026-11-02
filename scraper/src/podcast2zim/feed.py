@@ -1,5 +1,4 @@
 import datetime
-import hashlib
 import re
 from dataclasses import dataclass, field
 
